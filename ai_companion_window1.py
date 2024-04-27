@@ -6,13 +6,15 @@ import pygame
 def create_input_window():
     pygame.init()
     screen_width = 400
-    screen_height = 150
+    screen_height = 250
     screen = pygame.display.set_mode((screen_width, screen_height))
     pygame.display.set_caption("Input Window")
     
     input_font = pygame.font.Font(None, 32)
+    startup_text = ""
     input_text = ""
     city_text = ""
+    startup_active = True
     input_active = True
     city_entered = False
 
@@ -56,8 +58,10 @@ def create_input_window():
         file.write(input_text)
     with open("city.txt", "w") as file:
         file.write(city_text)
+    with open("startup.txt", "w") as file:
+        file.write(startup_text)
 
-    return (input_text, city_text)
+    return (input_text, city_text, startup_text)
 
 def main():
     while True:
