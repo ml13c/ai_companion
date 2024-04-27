@@ -22,7 +22,6 @@ def read_input_text():
         return input_text
     else:
         return None
-
     
 def read_city_text():
     if os.path.exists("city.txt"):
@@ -33,6 +32,15 @@ def read_city_text():
         return city_text
     else:
         return None
+
+def read_startup_text():
+    if os.path.exists("startup.txt"):
+        with open("startup.txt", "r") as file:
+            startup_text = file.read().strip()
+        open("startup.txt", "w").close()
+        return startup_text
+    else: return None
+
 def get_weather_data(city_text):
     user_api = os.environ['current_weather_data']
     complete_api_link = "https://api.openweathermap.org/data/2.5/weather?q=" + city_text + "&appid=" + user_api
@@ -92,7 +100,7 @@ def display_image_window(default_image_url, weather_info=None):
     screen.fill((0, 0, 0))  # Fill the screen with black initially
     screen.blit(default_image, (screen_width // 2 - default_image.get_width() // 2, screen_height // 2 - default_image.get_height() // 2))
     pygame.display.flip()  # Update the display with the default image
-
+    
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -100,6 +108,7 @@ def display_image_window(default_image_url, weather_info=None):
 
         input_text = read_input_text()
         city_text = read_city_text()
+
 
         if input_text != previous_input_text or city_text != previous_city_text:  # Check if the input text has changed
             if input_text:
@@ -117,8 +126,7 @@ def display_image_window(default_image_url, weather_info=None):
                         else:
                             print("city other than dallas entered:", city_text)
                     else:
-                        print("else:", city_text)
-                        print("city not recognized")
+                        print("blank-run through location")
                         
                 else:
                     print("Im sorry I dont quite understand.")
