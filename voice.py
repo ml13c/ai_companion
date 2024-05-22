@@ -1,3 +1,6 @@
+import threading
+import time
+import subprocess
 import requests
 import os
 from datetime import datetime
@@ -6,7 +9,62 @@ import geocoder
 import pyttsx3
 import speech_recognition as sr
 from g4f.client import Client
-
+import nest_asyncio
+nest_asyncio.apply()
+#listen after cortana
+def listen_for_command():
+    global keyword_detected
+    while keyword_detected:
+        try:
+            # Use the microphone as source for input
+            with sr.Microphone() as source2:
+                print("Listening after cortana booted up...")
+                r.adjust_for_ambient_noise(source2, duration=0.2)
+                audio2 = r.listen(source2, timeout=10)  # 10 seconds no input = timeout
+                # Using Google to recognize audio
+                cortana_input = r.recognize_google(audio2).lower()
+                print("cortana reads:", cortana_input)
+                if engine._inLoop:
+                    engine.endLoop()
+                if "weather in" in cortana_input:
+                    city_text = cortana_input.split("weather in", 1)[1].strip()
+                    print(f"Fetching weather for {city_text}")
+                    #weather based on city
+                    weather_info = get_weather_data(city_text)
+                    print(weather_info)
+                    engine.say(weather_info)
+                    engine.runAndWait()
+                elif "weather" in cortana_input:
+                    print("weather data being shown")
+                    #weather current location
+                    weather_info = get_latlonweather_data()
+                    print(weather_info)
+                    engine.say(weather_info)
+                    engine.runAndWait()
+                # Exit condition
+                elif "exit" in cortana_input:
+                    print("going back to sleep")
+                    keyword_detected = False
+                    break
+                else:
+                    # Pass user input to GPT-3.5 for further processing
+                    response = client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "user", "content": cortana_input}],
+                    )
+                    # Output GPT-3.5 response
+                    print("GPT-3.5 Response:", response.choices[0].message.content)
+                    engine.say(response.choices[0].message.content)
+                    engine.runAndWait()  # Ensure this is only called once    
+                                    
+        except sr.WaitTimeoutError:
+            print("No input received. Going back to sleep.")
+            keyword_detected = False
+            break
+        except sr.RequestError as e:
+            print(f"Could not request results; {e}")
+        except sr.UnknownValueError:
+            print("Sorry, could not understand audio.")
 #city weather
 def get_weather_data(city_text):
     user_api = os.environ['current_weather_data']
@@ -75,109 +133,68 @@ engine = pyttsx3.init()
 voices = engine.getProperty('voices')
 engine.setProperty("voice", voices[1].id)
 client = Client()
-cortana_started = False
 
-# Loop infinitely for user to speak
-while True: 
-    try:
-        # Use the microphone as source for input
-        with sr.Microphone() as source:
-            print("Listening...")
-            r.adjust_for_ambient_noise(source, duration=0.2)
-            audio = r.listen(source)
-            # Using Google to recognize audio
-            user_input = r.recognize_google(audio).lower()
-            print("You said:", user_input)
-            
-            if "cortana" in user_input:
-                cortana_started = True
-                parts = user_input.split("cortana")
-                if len(parts) > 1:
-                    after_cortana = parts[1].strip()
-                    if "weather in" in after_cortana:
-                        city_text = after_cortana.split("weather in", 1)[1].strip()
-                        print(f"Fetching weather for {city_text}")
-                        #weather based on city
-                        weather_info = get_weather_data(city_text)
-                        print(weather_info)
-                        engine.say(weather_info)
-                        engine.runAndWait()
-                    elif "weather" in after_cortana:
-                        print("weather data being shown")
-                        #weather current location
-                        weather_info = get_latlonweather_data()
-                        print(weather_info)
-                        engine.say(weather_info)
-                        engine.runAndWait()
-                    else:
+keyword_detected = False
+def listen_for_keyword():
+    global keyword_detected
+    while True:
+        try:
+        #use mic as input
+            with sr.Microphone() as source:
+                print("Listening")
+                r.adjust_for_ambient_noise(source, duration=0.2)
+                audio = r.listen(source)
+                user_input = r.recognize_google(audio).lower()
+                print("Heard: ", user_input)#constantly listens for cortana
+                
+                if "cortana" in user_input:#if cortana is heard it checks if there was a command after so you dont have to repeat it again
+                    keyword_detected = True
+                    parts = user_input.split("cortana")
+                    if len(parts) > 1:
+                        after_cortana = parts[1].strip()
+                        if "weather in" in after_cortana:
+                            city_text = after_cortana.split("weather in", 1)[1].strip()
+                            print(f"Fetching weather for {city_text}")
+                            #weather based on city
+                            weather_info = get_weather_data(city_text)
+                            print(weather_info)
+                            engine.say(weather_info)
+                            engine.runAndWait()
+                        elif "weather" in after_cortana:
+                            print("weather data being shown")
+                            #weather current location
+                            weather_info = get_latlonweather_data()
+                            print(weather_info)
+                            engine.say(weather_info)
+                            engine.runAndWait()
+                        else:
                         # Pass user input to GPT-3.5 for further processing
-                        response = client.chat.completions.create(
-                            model="gpt-3.5-turbo",
-                            messages=[{"role": "user", "content": after_cortana}],
-                        )
-                        # Output GPT-3.5 response
-                        print("GPT-3.5 Response:", response.choices[0].message.content)
-                        engine.say(response.choices[0].message.content)
-                        engine.runAndWait()  # Ensure this is only called once                       
-                        
-                else:
-                    after_cortana = ""
-            
-                while cortana_started:
-                    try:
-                        # Use the microphone as source for input
-                        with sr.Microphone() as source2:
-                            print("Listening after cortana booted up...")
-                            r.adjust_for_ambient_noise(source2, duration=0.2)
-                            audio2 = r.listen(source2, timeout=15)  # 15 seconds timeout
-                            # Using Google to recognize audio
-                            cortana_input = r.recognize_google(audio2).lower()
-                            print("cortana reads:", cortana_input)
-                            if "weather in" in cortana_input:
-                                city_text = after_cortana.split("weather in", 1)[1].strip()
-                                print(f"Fetching weather for {city_text}")
-                                #weather based on city
-                                weather_info = get_weather_data(city_text)
-                                print(weather_info)
-                                engine.say(weather_info)
-                                engine.runAndWait()
-                            elif "weather" in cortana_input:
-                                print("weather data being shown")
-                                #weather current location
-                                weather_info = get_latlonweather_data()
-                                print(weather_info)
-                                engine.say(weather_info)
-                                engine.runAndWait()
-                            # Exit condition
-                            elif "exit" in cortana_input:
-                                print("going back to sleep")
-                                cortana_started = False
-                                break
-                            else:
-                                # Pass user input to GPT-3.5 for further processing
-                                response = client.chat.completions.create(
-                                    model="gpt-3.5-turbo",
-                                    messages=[{"role": "user", "content": cortana_input}],
-                                )
-                                # Output GPT-3.5 response
-                                print("GPT-3.5 Response:", response.choices[0].message.content)
-                                engine.say(response.choices[0].message.content)
-                                engine.runAndWait()  # Ensure this is only called once    
+                            response = client.chat.completions.create(
+                                model="gpt-3.5-turbo",
+                                messages=[{"role": "user", "content": after_cortana}],
+                            )
+                            # Output GPT-3.5 response
+                            print("GPT-3.5 Response:", response.choices[0].message.content)
+                            engine.say(response.choices[0].message.content)
+                            engine.runAndWait()  # Ensure this is only called once 
+
+                    else:
+                        after_cortana= ""
+        except sr.RequestError as e:
+            print(f"Could not request results; {e}")
+        except sr.UnknownValueError:
+            print("Sorry, could not understand audio.")
 
 
-                    except sr.WaitTimeoutError:
-                        print("No input received. Going back to sleep.")
-                        cortana_started = False
-                        break
-                    except sr.RequestError as e:
-                        print(f"Could not request results; {e}")
-                    except sr.UnknownValueError:
-                        print("Sorry, could not understand audio.")
+# Start the keyword listener in a separate thread
+keyword_thread = threading.Thread(target=listen_for_keyword, daemon=True)
+keyword_thread.start()
 
+# Wait for the keyword detection before starting the animation script
+while not keyword_detected:
+    time.sleep(1)
 
-
-
-    except sr.RequestError as e:
-        print(f"Could not request results; {e}")
-    except sr.UnknownValueError:
-        print("Sorry, could not understand audio.")
+animation_thread = threading.Thread(target=lambda: subprocess.run(["python", "animation.py"]))
+animation_thread.start()
+listen_for_command()
+# Once the keyword is detected, start the animation script
