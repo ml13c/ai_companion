@@ -11,6 +11,7 @@ import speech_recognition as sr
 from g4f.client import Client
 import nest_asyncio
 nest_asyncio.apply()
+keyword_detected = False
 #listen after cortana
 def listen_for_command():
     global keyword_detected
@@ -27,6 +28,7 @@ def listen_for_command():
                 if engine._inLoop:
                     engine.endLoop()
                 if "weather in" in cortana_input:
+                    testaction = "weather"
                     city_text = cortana_input.split("weather in", 1)[1].strip()
                     print(f"Fetching weather for {city_text}")
                     #weather based on city
@@ -35,6 +37,7 @@ def listen_for_command():
                     engine.say(weather_info)
                     engine.runAndWait()
                 elif "weather" in cortana_input:
+                    testaction = "weather"
                     print("weather data being shown")
                     #weather current location
                     weather_info = get_latlonweather_data()
@@ -134,10 +137,9 @@ voices = engine.getProperty('voices')
 engine.setProperty("voice", voices[1].id)
 client = Client()
 
-keyword_detected = False
 def listen_for_keyword():
     global keyword_detected
-    while True:
+    while not keyword_detected:
         try:
         #use mic as input
             with sr.Microphone() as source:
@@ -197,4 +199,5 @@ while not keyword_detected:
 animation_thread = threading.Thread(target=lambda: subprocess.run(["python", "animation.py"]))
 animation_thread.start()
 listen_for_command()
+
 # Once the keyword is detected, start the animation script
